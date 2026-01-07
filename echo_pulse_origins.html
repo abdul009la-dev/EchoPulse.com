@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Echo Pulse: Origins</title>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --secondary: #7000ff;
+            --accent: #ff007a;
+            --glass: rgba(255, 255, 255, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI Screens */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(15px);
+            transition: opacity 0.5s;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; opacity: 0; }
+
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 5px;
+            filter: drop-shadow(0 0 15px rgba(0, 242, 255, 0.5));
+        }
+
+        .btn {
+            width: 280px;
+            padding: 15px;
+            margin: 10px;
+            background: var(--glass);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            backdrop-filter: blur(5px);
+        }
+
+        .btn:active { transform: scale(0.95); background: white; color: black; }
+        .btn.primary { border-color: var(--primary); color: var(--primary); }
+
+        .input-field {
+            width: 280px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            color: white;
+            text-align: center;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            outline: none;
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .hud-item {
+            background: var(--glass);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* World List */
+        #world-list {
+            width: 100%;
+            max-width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+
+        .world-item {
+            background: var(--glass);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        /* Shop */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .shop-card {
+            background: var(--glass);
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #boss-hp {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            display: none;
+        }
+
+        #boss-hp-fill {
+            width: 100%;
+            height: 100%;
+            background: var(--accent);
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="hud" class="hidden">
+        <div class="hud-item" id="score-hud">SCORE: 0</div>
+        <div class="hud-item" id="energy-hud">⚡ 0</div>
+    </div>
+
+    <div id="boss-hp"><div id="boss-hp-fill"></div></div>
+
+    <!-- Main Menu -->
+    <div id="menu-main" class="screen">
+        <h1>ECHO ORIGINS</h1>
+        <button class="btn primary" onclick="showScreen('menu-play')">Играть</button>
+        <button class="btn" onclick="showScreen('menu-shop')">Магазин</button>
+        <p style="margin-top: 20px; font-size: 0.8rem; color: #888;">Sandbox Action Adventure</p>
+    </div>
+
+    <!-- Play Menu -->
+    <div id="menu-play" class="screen hidden">
+        <h2>ВАШИ МИРЫ</h2>
+        <div id="world-list"></div>
+        <button class="btn primary" onclick="showScreen('menu-create')">Создать новый мир</button>
+        <button class="btn" onclick="showScreen('menu-main')">Назад</button>
+    </div>
+
+    <!-- Create World -->
+    <div id="menu-create" class="screen hidden">
+        <h2>НОВЫЙ МИР</h2>
+        <input type="text" id="world-name" class="input-field" placeholder="Название мира">
+        <input type="text" id="world-seed" class="input-field" placeholder="Seed (пусто для случайного)">
+        <button class="btn primary" onclick="createNewWorld()">Создать</button>
+        <button class="btn" onclick="showScreen('menu-play')">Отмена</button>
+    </div>
+
+    <!-- Shop -->
+    <div id="menu-shop" class="screen hidden">
+        <h2>МАГАЗИН</h2>
+        <div id="shop-currency" style="color: var(--primary); margin: 10px;">⚡ 0</div>
+        <div class="shop-grid">
+            <div class="shop-card">
+                <b>Neon Skin</b><br>500 ⚡
+            </div>
+            <div class="shop-card">
+                <b>Glass Trail</b><br>1000 ⚡
+            </div>
+        </div>
+        <button class="btn" onclick="showScreen('menu-main')">Назад</button>
+    </div>
+
+    <!-- Game Over -->
+    <div id="menu-gameover" class="screen hidden">
+        <h2 style="color: var(--accent); font-size: 3rem;">СИГНАЛ ПОТЕРЯН</h2>
+        <p id="gameover-stats" style="margin: 20px 0;"></p>
+        <button class="btn primary" onclick="restartGame()">Возродиться</button>
+        <button class="btn" onclick="exitToMenu()">В меню</button>
+    </div>
+</div>
+
+<script>
+    /**
+     * ECHO PULSE: ORIGINS
+     * Ультимативная версия: Бесконечный мир, Seed, Сохранения, Боссы.
+     */
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Game State
+    let state = 'MENU';
+    let currentWorld = null;
+    let worlds = JSON.parse(localStorage.getItem('echo_worlds') || '[]');
+    let profile = JSON.parse(localStorage.getItem('echo_profile') || '{"energy":0,"unlocked":[]}');
+
+    // Engine Variables
+    let player = { x: 0, y: 0, vx: 0, vy: 0, r: 12, trail: [], hp: 100 };
+    let camera = { x: 0, y: 0 };
+    let pulses = [];
+    let glassBalls = []; // Уникальная атака
+    let enemies = [];
+    let particles = [];
+    let boss = null;
+    let frame = 0;
+
+    // Biome Definitions
+    const BIOMES = {
+        FOREST: { name: 'FOREST', bg: ['#1a4d44', '#0a2e2a'], primary: '#2ecc71', enemy: '#27ae60' },
+        DESERT: { name: 'DESERT', bg: ['#6e4d1a', '#4a3311'], primary: '#f1c40f', enemy: '#e67e22' },
+        ICE: { name: 'ICE', bg: ['#2c5d72', '#1b3a4b'], primary: '#ffffff', enemy: '#3498db' },
+        VOID: { name: 'VOID', bg: ['#2d1a4d', '#1a0a2e'], primary: '#9b59b6', enemy: '#7000ff' },
+        CHAOS: { name: 'CHAOS', bg: ['#5d1a1a', '#3e0a0a'], primary: '#e74c3c', enemy: '#ff007a' }
+    };
+
+    // --- CORE FUNCTIONS ---
+
+    function mulberry32(a) {
+        return function() {
+            let t = a += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }
+    }
+
+    function getSeedHash(s) {
+        let hash = 0;
+        for (let i = 0; i < s.length; i++) hash = ((hash << 5) - hash) + s.charCodeAt(i);
+        return Math.abs(hash);
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+        if (id === 'menu-play') renderWorldList();
+        if (id === 'menu-shop') document.getElementById('shop-currency').innerText = `⚡ ${profile.energy}`;
+    }
+
+    function renderWorldList() {
+        const list = document.getElementById('world-list');
+        list.innerHTML = worlds.length ? '' : '<p style="color:#888">Миров пока нет</p>';
+        worlds.forEach((w, i) => {
+            const item = document.createElement('div');
+            item.className = 'world-item';
+            item.innerHTML = `<span>${w.name} (${w.biome})</span> <button class="btn" style="width:80px; margin:0; padding:5px;" onclick="loadWorld(${i})">Загрузить</button>`;
+            list.appendChild(item);
+        });
+    }
+
+    function createNewWorld() {
+        const name = document.getElementById('world-name').value || "Новый мир";
+        const seedStr = document.getElementById('world-seed').value || Math.random().toString(36).substring(7);
+        const biomeKeys = Object.keys(BIOMES);
+        const biome = BIOMES[biomeKeys[Math.floor(Math.random() * biomeKeys.length)]];
+        
+        const newWorld = {
+            name,
+            seed: seedStr,
+            biome: biome.name,
+            score: 0,
+            level: 1,
+            created: Date.now()
+        };
+        
+        worlds.push(newWorld);
+        localStorage.setItem('echo_worlds', JSON.stringify(worlds));
+        loadWorld(worlds.length - 1);
+    }
+
+    function loadWorld(index) {
+        currentWorld = worlds[index];
+        initGame();
+        state = 'PLAYING';
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.getElementById('hud').classList.remove('hidden');
+    }
+
+    function initGame() {
+        resize();
+        player.x = 0; player.y = 0;
+        player.vx = 0; player.vy = 0;
+        player.trail = [];
+        player.hp = 100;
+        pulses = [];
+        glassBalls = [];
+        enemies = [];
+        particles = [];
+        boss = null;
+        frame = 0;
+        document.getElementById('boss-hp').style.display = 'none';
+    }
+
+    function resize() {
+        canvas.width = window.innerWidth * window.devicePixelRatio;
+        canvas.height = window.innerHeight * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', resize);
+
+    // --- GAMEPLAY ---
+
+    function handleInput(mx, my) {
+        if (state !== 'PLAYING') return;
+        const rect = canvas.getBoundingClientRect();
+        const x = mx - rect.left + camera.x;
+        const y = my - rect.top + camera.y;
+        
+        // Создаем импульс
+        createPulse(x, y);
+    }
+
+    canvas.addEventListener('mousedown', (e) => handleInput(e.clientX, e.clientY));
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        handleInput(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+
+    function createPulse(x, y) {
+        const biome = BIOMES[currentWorld.biome];
+        pulses.push({ x, y, r: 0, maxR: 150, opacity: 1, color: biome.primary });
+        
+        const dx = player.x - x;
+        const dy = player.y - y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 150) {
+            const force = (150 - dist) / 150 * 15;
+            player.vx += (dx / dist) * force;
+            player.vy += (dy / dist) * force;
+        }
+    }
+
+    function spawnGlassBall() {
+        // Уникальная атака: шары появляются вокруг игрока
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 100 + Math.random() * 50;
+        glassBalls.push({
+            x: player.x + Math.cos(angle) * dist,
+            y: player.y + Math.sin(angle) * dist,
+            r: 8,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2
+        });
+    }
+
+    function update() {
+        if (state !== 'PLAYING') return;
+        frame++;
+
+        // Physics
+        player.x += player.vx;
+        player.y += player.vy;
+        player.vx *= 0.97;
+        player.vy *= 0.97;
+
+        camera.x += (player.x - canvas.clientWidth / 2 - camera.x) * 0.1;
+        camera.y += (player.y - canvas.clientHeight / 2 - camera.y) * 0.1;
+
+        player.trail.push({x: player.x, y: player.y});
+        if (player.trail.length > 20) player.trail.shift();
+
+        // Glass Balls Logic
+        if (frame % 120 === 0) spawnGlassBall();
+        for (let i = glassBalls.length - 1; i >= 0; i--) {
+            const b = glassBalls[i];
+            b.x += b.vx; b.y += b.vy;
+            
+            const dx = player.x - b.x;
+            const dy = player.y - b.y;
+            if (Math.sqrt(dx*dx + dy*dy) < player.r + b.r) {
+                // Разбивается как стекло
+                createParticles(b.x, b.y, '#00f2ff', 15, true);
+                createPulse(b.x, b.y);
+                glassBalls.splice(i, 1);
+            }
+        }
+
+        // Enemies
+        if (frame % 100 === 0 && !boss) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 600;
+            enemies.push({
+                x: player.x + Math.cos(angle) * dist,
+                y: player.y + Math.sin(angle) * dist,
+                r: 15,
+                hp: 30,
+                vx: 0, vy: 0
+            });
+        }
+
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const e = enemies[i];
+            const dx = player.x - e.x;
+            const dy = player.y - e.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            e.vx = (dx / dist) * 2;
+            e.vy = (dy / dist) * 2;
+            e.x += e.vx; e.y += e.vy;
+
+            if (dist < player.r + e.r) endGame();
+
+            // Damage from pulses
+            pulses.forEach(p => {
+                const pdx = e.x - p.x;
+                const pdy = e.y - p.y;
+                const pdist = Math.sqrt(pdx*pdx + pdy*pdy);
+                if (pdist < p.r + e.r && pdist > p.r - 20) {
+                    e.hp -= 5;
+                    createParticles(e.x, e.y, '#fff', 2);
+                }
+            });
+
+            if (e.hp <= 0) {
+                createParticles(e.x, e.y, BIOMES[currentWorld.biome].enemy, 10);
+                enemies.splice(i, 1);
+                currentWorld.score += 10;
+                profile.energy += 5;
+                updateHUD();
+            }
+        }
+
+        // Pulses
+        for (let i = pulses.length - 1; i >= 0; i--) {
+            const p = pulses[i];
+            p.r += 5;
+            p.opacity -= 0.02;
+            if (p.opacity <= 0) pulses.splice(i, 1);
+        }
+
+        // Particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            p.life -= 0.02;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        // Herobrine Easter Egg
+        if (currentWorld.seed.toUpperCase() === 'HEROBRINE' && frame % 1000 === 0) {
+            // Скример или туман
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+        }
+    }
+
+    function createParticles(x, y, color, count, isGlass = false) {
+        for (let i = 0; i < count; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * (isGlass ? 15 : 8),
+                vy: (Math.random() - 0.5) * (isGlass ? 15 : 8),
+                life: 1,
+                color,
+                isGlass
+            });
+        }
+    }
+
+    function updateHUD() {
+        document.getElementById('score-hud').innerText = `SCORE: ${currentWorld.score}`;
+        document.getElementById('energy-hud').innerText = `⚡ ${profile.energy}`;
+        localStorage.setItem('echo_profile', JSON.stringify(profile));
+    }
+
+    function draw() {
+        if (state !== 'PLAYING') {
+            requestAnimationFrame(draw);
+            return;
+        }
+
+        const biome = BIOMES[currentWorld.biome];
+        
+        // Background Gradient
+        const grad = ctx.createRadialGradient(
+            canvas.clientWidth/2, canvas.clientHeight/2, 0,
+            canvas.clientWidth/2, canvas.clientHeight/2, canvas.clientWidth
+        );
+        grad.addColorStop(0, biome.bg[0]);
+        grad.addColorStop(1, biome.bg[1]);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+        // Grid
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        const step = 100;
+        const offsetX = -camera.x % step;
+        const offsetY = -camera.y % step;
+        for(let x=offsetX; x<canvas.clientWidth; x+=step) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.clientHeight); ctx.stroke();
+        }
+        for(let y=offsetY; y<canvas.clientHeight; y+=step) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.clientWidth, y); ctx.stroke();
+        }
+
+        // Glass Balls
+        glassBalls.forEach(b => {
+            ctx.beginPath();
+            ctx.arc(b.x - camera.x, b.y - camera.y, b.r, 0, Math.PI*2);
+            ctx.fillStyle = 'rgba(0, 242, 255, 0.5)';
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
+        });
+
+        // Pulses
+        pulses.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x - camera.x, p.y - camera.y, p.r, 0, Math.PI*2);
+            ctx.strokeStyle = p.color;
+            ctx.globalAlpha = p.opacity;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        });
+
+        // Enemies
+        enemies.forEach(e => {
+            ctx.beginPath();
+            ctx.arc(e.x - camera.x, e.y - camera.y, e.r, 0, Math.PI*2);
+            ctx.fillStyle = biome.enemy;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = biome.enemy;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        });
+
+        // Player
+        ctx.beginPath();
+        ctx.arc(player.x - camera.x, player.y - camera.y, player.r, 0, Math.PI*2);
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#fff';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Particles
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            if (p.isGlass) {
+                ctx.fillRect(p.x - camera.x, p.y - camera.y, 4, 4);
+            } else {
+                ctx.fillRect(p.x - camera.x, p.y - camera.y, 2, 2);
+            }
+        });
+        ctx.globalAlpha = 1;
+
+        requestAnimationFrame(draw);
+    }
+
+    function endGame() {
+        state = 'GAMEOVER';
+        document.getElementById('menu-gameover').classList.remove('hidden');
+        document.getElementById('gameover-stats').innerText = `Счет: ${currentWorld.score} | Энергия: ${profile.energy}`;
+        localStorage.setItem('echo_worlds', JSON.stringify(worlds));
+    }
+
+    function restartGame() {
+        initGame();
+        state = 'PLAYING';
+        document.getElementById('menu-gameover').classList.add('hidden');
+    }
+
+    function exitToMenu() {
+        state = 'MENU';
+        document.getElementById('menu-gameover').classList.add('hidden');
+        document.getElementById('hud').classList.add('hidden');
+        showScreen('menu-main');
+    }
+
+    // Start Loop
+    setInterval(update, 1000/60);
+    draw();
+
+</script>
+</body>
+</html>
